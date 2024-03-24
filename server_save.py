@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sys
-from aiohttp import web
 from pymongo import MongoClient
 from retry import retry
 from dotenv import load_dotenv
@@ -102,7 +101,6 @@ async def background_save(user_data):
         await Chats(user_data)
         await Users(user_data)
         await Messages(user_data)
-        return web.Response(text="Запрос выполнен.")
     except Exception as e:
         print(f'Error: {e}')
         print(sys.exc_info())
