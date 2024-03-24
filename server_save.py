@@ -23,6 +23,8 @@ async def retry(func_name, *args, **kwargs):
 
 async def insert_or_update_one(collection, query, update=None):
     try:
+        if update is None:
+            return
         result = collection.update_one(query, {'$set': update}, upsert=True)
         return result
     except Exception as e:
@@ -46,7 +48,7 @@ async def Users(data):
                 'phone': data['accounts'][key]['info'].get('phone'),
                 'image': data['accounts'][key]['info'].get('image'),
                 'past_first_name': None,
-                'past_last_name': None
+                'past_last_name':None
             }
             if exist_user is not None:
                 if exist_user.get('first_name') != update['first_name']:
@@ -86,10 +88,11 @@ async def Chats(data):
                 'username': data['chats'][key].get('username'),
                 'title': data['chats'][key].get('title'),
                 'last_online': data['chats'][key].get('last_online'),
-                'past_title':None
+                'past_title': None
             }
             if exist_chat is not None:
-                update['past_title'] = exist_chat.get('title')
+                if exist_chat.get('title') != update['title']:
+                    update['past_title'] = exist_chat.get('title')
 
             query = {'chat_id': key}
             await retry(insert_or_update_one, collection, query, update)
