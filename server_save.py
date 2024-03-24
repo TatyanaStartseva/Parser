@@ -45,10 +45,14 @@ async def Users(data):
                 'premium': data['accounts'][key]['info'].get('premium'),
                 'phone': data['accounts'][key]['info'].get('phone'),
                 'image': data['accounts'][key]['info'].get('image'),
+                'past_first_name': None,
+                'past_last_name': None
             }
             if exist_user is not None:
-                update['past_first_name'] = exist_user.get('first_name')
-                update['past_last_name'] = exist_user.get('last_name')
+                if exist_user.get('first_name') != update['first_name']:
+                    update['past_first_name'] = exist_user.get('first_name')
+                if exist_user.get('last_name') != update['last_name']:
+                    update['past_last_name'] = exist_user.get('last_name')
 
             query = {'user_id': key}
             await retry(insert_or_update_one, collection, query, update)
@@ -81,7 +85,8 @@ async def Chats(data):
                 'chat_id': key,
                 'username': data['chats'][key].get('username'),
                 'title': data['chats'][key].get('title'),
-                'last_online': data['chats'][key].get('last_online')
+                'last_online': data['chats'][key].get('last_online'),
+                'past_title':None
             }
             if exist_chat is not None:
                 update['past_title'] = exist_chat.get('title')
