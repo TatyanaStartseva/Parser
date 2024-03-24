@@ -15,14 +15,13 @@ import json
 import os
 import requests
 import sys
+
 load_dotenv()
 IP = os.getenv("IP")
 my_variable = os.environ.get("ID")
 print(my_variable)
 with open("query_keys.json", "r") as f:
     queryKey = json.load(f) or []
-
-task_running = False
 
 logging.basicConfig(
     level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s"
@@ -68,7 +67,6 @@ def serialize_participant(participant):
         "phone": participant.phone,
         "image": hasattr(participant, "photo") and participant.photo is not None,
     }
-
 
 
 async def send_request_to_server(user_data, retry_delay=5):
@@ -134,10 +132,7 @@ async def parse_chat(client, chat, user_data):
                                     "chats": {chat.id: []},
                                 }
                             else:
-                                if (
-                                        chat.id
-                                        not in user_data["accounts"][participant.id]["chats"]
-                                ):
+                                if chat.id not in user_data["accounts"][participant.id]["chats"]:
                                     user_data["accounts"][participant.id]["chats"][
                                         chat.id
                                     ] = []
@@ -152,25 +147,20 @@ async def parse_chat(client, chat, user_data):
                 )
         processed_messages = 0
 
-        async for message in client.iter_messages(chat, limit=25000):
+        async for message in client.iter_messages(chat, limit=100):
             sender = message.sender
             if (
                     sender is not None
                     and not isinstance(sender, Channel)
                     and not getattr(sender, "bot", False)
-
             ):
-
                 if True:
                     if sender.id not in user_data["accounts"]:
                         user_data["accounts"][sender.id] = {
                             "chats": {chat.id: []},
                         }
                     else:
-                        if (
-                                chat.id
-                                not in user_data["accounts"][sender.id]["chats"]
-                        ):
+                        if chat.id not in user_data["accounts"][sender.id]["chats"]:
                             user_data["accounts"][sender.id]["chats"][
                                 chat.id
                             ] = []
@@ -216,73 +206,57 @@ async def parse_chat_by_username(client, chat_url_or_username, user_data):
                     await parse_chat(client, chat, user_data)
 
 
-async def main(chat_urls_or_usernames, api_id, api_hash, session_value):
-    global task_running
-    task_running = True
+async def main(api_id, api_hash, session_value):
     user_data = {"chats": {}, "accounts": {}}
     try:
-        async with TelegramClient(
-                StringSession(session_value), api_id, api_hash
-        ) as client:
-            for chat_url_or_username in chat_urls_or_usernames:
-                try:
-                    await parse_chat_by_username(
-                        client, chat_url_or_username, user_data
-                    )
-                    await send_request_to_server(user_data)
-                except errors.FloodWaitError as e:
+        res = requests.get(f"http://{IP}/link")
+        data = res.json()
+        if data:
+            chat_urls_or_usernames = [data]
+            logger.info(f"{chat_urls_or_usernames}")
+            async with TelegramClient(
+                    StringSession(session_value), api_id, api_hash
+            ) as client:
+                for chat_url_or_username in chat_urls_or_usernames:
                     try:
-                        wait_time = e.seconds
-                        logger.warning(
-                            f"Получена ошибка FloodWaitError. Ожидание {wait_time} секунд перед повторной попыткой..."
-                        )
-                        await asyncio.sleep(wait_time + 5)
                         await parse_chat_by_username(
                             client, chat_url_or_username, user_data
                         )
                         await send_request_to_server(user_data)
+                    except errors.FloodWaitError as e:
+                        try:
+                            wait_time = e.seconds
+                            logger.warning(
+                                f"Получена ошибка FloodWaitError. Ожидание {wait_time} секунд перед повторной попыткой..."
+                            )
+                            await asyncio.sleep(wait_time + 5)
+                            await parse_chat_by_username(
+                                client, chat_url_or_username, user_data
+                            )
+                            await send_request_to_server(user_data)
+                        except Exception as e:
+                            logger.error(f"Произошла ошибка при повторном парсен: {e}")
                     except Exception as e:
-                        logger.error(f"Произошла ошибка при повторном парсен: {e}")
-                except Exception as e:
-                    logger.error(
-                        f"Ссылка {chat_url_or_username} не распаршена, произошла ошибка. {e}"
-                    )
-                    continue
+                        logger.error(
+                            f"Ссылка {chat_url_or_username} не распаршена, произошла ошибка. {e}"
+                        )
+                        continue
 
     except Exception as e:
         logger.error(f"Произошла глобальная ошибка. {e}")
-    task_running = False
-async def handle_task(api_id, api_hash, session_value):
-        print(f"ID: {api_id}")
-        print(f"HASH: {api_hash}")
-        print(f"SESSION_VALUE: {session_value}")
-        try:
-            async with TelegramClient(StringSession(session_value), api_id, api_hash) as client:
-                me = await client.get_me()
-                res = requests.get(f"http://{IP}/link")
-                data = res.json()
-                if data:
-                    chat_urls_or_usernames = [data]
-                    logger.info(f"{chat_urls_or_usernames}")
-                    logger.info(f"Телеграм аккаунт работает, идентификатор пользователя: {me.id}")
-                    await main(chat_urls_or_usernames, api_id, api_hash, session_value)
-                else:
-                    logger.error("Получен пустой файл с данными.")
-        except Exception as e:
-            logger.error(f"Произошла ошибка при проверке работы Telegram аккаунта: {e}")
+
 
 api_id = sys.argv[1]
 api_hash = sys.argv[2]
 session_value = sys.argv[3]
 
+
 async def keep():
     while True:
-        await handle_task(api_id, api_hash, session_value)
+        await main(api_id, api_hash, session_value)
         await asyncio.sleep(60)
+
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(keep())
-
-
-
