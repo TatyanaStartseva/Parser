@@ -1,25 +1,27 @@
+import aiohttp
+import string
+import random
+import logging
+import asyncio
+import json
+import os
+import requests
+import sys
+import re
+
 from telethon.sessions import StringSession
 from telethon import TelegramClient
 from telethon.tl.types import Channel
 from telethon import functions, errors
 from datetime import datetime
 from dotenv import load_dotenv
-import server_save
-import datetime
-import string
-import random
-import logging
-import asyncio
-import time
-import json
-import os
-import requests
-import sys
+from parser_save import background_save
 
 load_dotenv()
+
 IP = os.getenv("IP")
-my_variable = os.environ.get("ID")
-print(my_variable)
+
+
 with open("query_keys.json", "r") as f:
     queryKey = json.load(f) or []
 
@@ -47,6 +49,46 @@ def get_username(entity):
         return None
 
 
+async def get_bio(username, path):
+    if not username:
+        return None
+
+    max_retries = 6
+
+    for _ in range(max_retries):
+        try:
+            async with aiohttp.ClientSession() as session:
+                proxy = "http://Kzatp7knxYKmnx29Li-res-ANY:6cuTNayd1lz5B28Ij@gw.thunderproxies.net:5959"
+                url = f"https://t.me/{username}"
+                async with session.get(url, proxy=proxy, timeout=10) as response:
+                    if response.status == 200:
+                        html_content = await response.text()
+                        match = re.search(
+                            r'<meta property="og:description" content="([^"]*)"',
+                            html_content,
+                        )
+                        if match:
+                            bio = match.group(1)
+
+                            if "You can contact" in bio:
+                                path["bio"] = None
+
+                            path["bio"] = bio.strip() if bio else None
+                        else:
+                            logger.error("Meta tag not found.")
+                            path["bio"] = None
+                    else:
+                        logger.error(f"Error: Status code {response.status}")
+                        path["bio"] = None
+        except Exception:
+            if _ < max_retries - 1:
+                logger.error(f"Retrying... {username}:{str(_ + 1)}")
+            else:
+                logger.error("Max retries reached. Exiting...")
+                path["bio"] = None
+                return
+
+
 def serialize_participant(participant):
     return {
         "user_id": participant.id,
@@ -54,6 +96,7 @@ def serialize_participant(participant):
         "last_name": (
             participant.last_name if hasattr(participant, "last_name") else None
         ),
+        "username": participant.username if hasattr(participant, "username") else None,
         "last_online": (
             participant.status.was_online.strftime("%Y-%m-%d %H:%M:%S")
             if participant.status and hasattr(participant.status, "was_online")
@@ -75,12 +118,16 @@ async def send_request_to_server(user_data, retry_delay=5):
         return
     while True:
         try:
+            logger.info(
+                f"Ожидание 60 секунд перед сохранением данных. Необходимо, чтобы точно дождаться получения юзернеймов"
+            )
+            await asyncio.sleep(60)
             logger.info(f"Инициирую запрос на сохранение данных.")
-            await server_save.background_save(user_data)
+            await background_save(user_data)
             return
         except requests.exceptions.RequestException as e:
             logger.error(f"Ошибка при сохранении данных на сервер: {e}")
-            time.sleep(retry_delay)
+            await asyncio.sleep(retry_delay)
 
 
 async def parse_chat(client, chat, user_data):
@@ -119,90 +166,87 @@ async def parse_chat(client, chat, user_data):
                 for participant in participants:
                     processed_participants += 1
                     logger.info(
-                        f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Обработка участника {processed_participants}/{total_participants}"
+                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Обработка участника {processed_participants}/{total_participants}"
                     )
 
                     if not isinstance(participant, Channel) and not getattr(
-                            participant, "bot", False
+                        participant, "bot", False
                     ):
-
-                        if True:
-                            if participant.id not in user_data["accounts"]:
-                                user_data["accounts"][participant.id] = {
-                                    "chats": {chat.id: []},
-                                }
-                            else:
-                                if chat.id not in user_data["accounts"][participant.id]["chats"]:
-                                    user_data["accounts"][participant.id]["chats"][
-                                        chat.id
-                                    ] = []
-
+                        if participant.id not in user_data["accounts"]:
                             info = serialize_participant(participant)
-                            user_data["accounts"][participant.id][
-                                "info"
-                            ] = info
+                            user_data["accounts"][participant.id] = {
+                                "chats": {chat.id: []},
+                                "info": info,
+                            }
+
+                            asyncio.create_task(
+                                get_bio(
+                                    participant.username,
+                                    user_data["accounts"][participant.id]["info"],
+                                )
+                            )
+                        else:
+                            chats = user_data["accounts"][participant.id]["chats"]
+                            if chat.id not in chats:
+                                chats[chat.id] = []
             except Exception as e:
                 logger.error(
                     f"Произошла ошибка при получении участников по букве {letter} в чате {chat.title}: {e}"
                 )
         processed_messages = 0
 
-        async for message in client.iter_messages(chat, limit=100):
+        async for message in client.iter_messages(chat, limit=25000):
             sender = message.sender
             if (
-                    sender is not None
-                    and not isinstance(sender, Channel)
-                    and not getattr(sender, "bot", False)
+                sender is not None
+                and not isinstance(sender, Channel)
+                and not getattr(sender, "bot", False)
             ):
-                if True:
-                    if sender.id not in user_data["accounts"]:
-                        user_data["accounts"][sender.id] = {
-                            "chats": {chat.id: []},
-                        }
-                    else:
-                        if chat.id not in user_data["accounts"][sender.id]["chats"]:
-                            user_data["accounts"][sender.id]["chats"][
-                                chat.id
-                            ] = []
-
-                    info = serialize_participant(sender)
-                    user_data["accounts"][sender.id]["info"] = info
-
-                    processed_messages += 1
-                    progress = processed_messages / total_messages * 100
-                    logger.info(
-                        f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Обработка сообщений: {processed_messages}/{total_messages} ({progress:.2f}%)"
+                if sender.id not in user_data["accounts"]:
+                    user_data["accounts"][sender.id] = {
+                        "chats": {chat.id: []},
+                        "info": serialize_participant(sender),
+                    }
+                    asyncio.create_task(
+                        get_bio(
+                            sender.username, user_data["accounts"][sender.id]["info"]
+                        )
                     )
+                else:
+                    if chat.id not in user_data["accounts"][sender.id]["chats"]:
+                        user_data["accounts"][sender.id]["chats"][chat.id] = []
 
-                    if message.text and message.text.strip() != "":
-                        user_data["accounts"][sender.id]["chats"][
-                            chat.id
-                        ].append({"message_id": message.id, "text": message.text})
+                processed_messages += 1
+                progress = processed_messages / total_messages * 100
+                logger.info(
+                    f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Обработка сообщений: {processed_messages}/{total_messages} ({progress:.2f}%)"
+                )
+
+                if message.text and message.text.strip() != "":
+                    user_data["accounts"][sender.id]["chats"][chat.id].append(
+                        {"message_id": message.id, "text": message.text}
+                    )
 
     except Exception as e:
         logger.error(f"Произошла ошибка при обработке чата. {e}")
         logger.exception(e)
 
 
-async def parse_chat_by_username(client, chat_url_or_username, user_data):
-    chat = await client.get_entity(chat_url_or_username)
+async def parse_chat_by_link(client, link, user_data):
+    chat = await client.get_entity(link)
     if chat.megagroup:
-        logger.info(f"Чат {chat_url_or_username} в работе.")
+        logger.info(f"Чат {link} в работе.")
         await parse_chat(client, chat, user_data)
     else:
-        logger.info(
-            f"Ссылка {chat_url_or_username} не является чатом, попытка извлечь чат..."
-        )
+        logger.info(f"Ссылка {link} не является чатом, попытка извлечь чат...")
         full = await client(functions.channels.GetFullChannelRequest(chat))
         if full and full.chats:
             for chat in full.chats:
                 if chat is not None and chat.megagroup:
                     logger.info(
-                        f"Исходя из ссылки {chat_url_or_username} найден прикрепленный чат {chat.id}."
+                        f"Исходя из ссылки {link} найден прикрепленный чат {chat.id}."
                     )
-                    logger.info(
-                        f"Чат {chat.id} от канала {chat_url_or_username} в работе."
-                    )
+                    logger.info(f"Чат {chat.id} от канала {link} в работе.")
                     await parse_chat(client, chat, user_data)
 
 
@@ -210,38 +254,32 @@ async def main(api_id, api_hash, session_value):
     user_data = {"chats": {}, "accounts": {}}
     try:
         res = requests.get(f"http://{IP}/link")
-        data = res.json()
-        if data:
-            chat_urls_or_usernames = [data]
-            logger.info(f"{chat_urls_or_usernames}")
-            async with TelegramClient(
-                    StringSession(session_value), api_id, api_hash
-            ) as client:
-                for chat_url_or_username in chat_urls_or_usernames:
-                    try:
-                        await parse_chat_by_username(
-                            client, chat_url_or_username, user_data
-                        )
-                        await send_request_to_server(user_data)
-                    except errors.FloodWaitError as e:
-                        try:
-                            wait_time = e.seconds
-                            logger.warning(
-                                f"Получена ошибка FloodWaitError. Ожидание {wait_time} секунд перед повторной попыткой..."
-                            )
-                            await asyncio.sleep(wait_time + 5)
-                            await parse_chat_by_username(
-                                client, chat_url_or_username, user_data
-                            )
-                            await send_request_to_server(user_data)
-                        except Exception as e:
-                            logger.error(f"Произошла ошибка при повторном парсен: {e}")
-                    except Exception as e:
-                        logger.error(
-                            f"Ссылка {chat_url_or_username} не распаршена, произошла ошибка. {e}"
-                        )
-                        continue
+        link = res.json()
 
+        if link:
+            logger.info(f"Ссылка, полученная для парсинга: {link}")
+            async with TelegramClient(
+                StringSession(session_value), api_id, api_hash
+            ) as client:
+                try:
+                    await parse_chat_by_link(client, link, user_data)
+                    await send_request_to_server(user_data)
+                except errors.FloodWaitError as e:
+                    try:
+                        wait_time = e.seconds
+                        logger.warning(
+                            f"Получена ошибка FloodWaitError. Ожидание {wait_time} секунд перед повторной попыткой..."
+                        )
+                        await asyncio.sleep(wait_time + 5)
+                        await parse_chat_by_link(client, link, user_data)
+                        await send_request_to_server(user_data)
+                    except Exception as e:
+                        logger.error(f"Произошла ошибка при повторном парсен: {e}")
+                except Exception as e:
+                    logger.error(f"Ссылка {link} не распаршена, произошла ошибка. {e}")
+                print('Выполнение скрипта успешно завершено')
+        else:
+            print("База данных для парсинга пуста. Повтор попытки через 60s.")
     except Exception as e:
         logger.error(f"Произошла глобальная ошибка. {e}")
 
