@@ -51,6 +51,7 @@ def get_username(entity):
 
 async def get_bio(username, path):
     if not username:
+        path["bio"] = None
         return None
 
     max_retries = 6
@@ -70,21 +71,24 @@ async def get_bio(username, path):
                         if match:
                             bio = match.group(1)
 
-                            if "You can contact" in bio:
+                            if bio:
+                                real_bio = bio.strip().lower()
+                                if "you can contact" in real_bio:
+                                    path["bio"] = None
+                                else:
+                                    path["bio"] = real_bio
+                                return
+                            else:
                                 path["bio"] = None
-
-                            path["bio"] = bio.strip() if bio else None
+                                return
                         else:
-                            logger.error("Meta tag not found.")
                             path["bio"] = None
+                            return
                     else:
-                        logger.error(f"Error: Status code {response.status}")
                         path["bio"] = None
+                        return
         except Exception:
-            if _ < max_retries - 1:
-                logger.error(f"Retrying... {username}:{str(_ + 1)}")
-            else:
-                logger.error("Max retries reached. Exiting...")
+            if _ >= max_retries - 1:
                 path["bio"] = None
                 return
 
@@ -277,7 +281,7 @@ async def main(api_id, api_hash, session_value):
                         logger.error(f"Произошла ошибка при повторном парсен: {e}")
                 except Exception as e:
                     logger.error(f"Ссылка {link} не распаршена, произошла ошибка. {e}")
-                print('Выполнение скрипта успешно завершено')
+                print("Выполнение скрипта успешно завершено")
         else:
             print("База данных для парсинга пуста. Повтор попытки через 60s.")
     except Exception as e:

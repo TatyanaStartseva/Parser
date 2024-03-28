@@ -87,6 +87,7 @@ async def Messages(user_data):
                             "text": text,
                         }
                         data_list.append(update)
+
         await retry(insert_or_update_one, collection, data_list)
 
     except Exception as e:
