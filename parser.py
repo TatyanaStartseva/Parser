@@ -96,7 +96,9 @@ async def get_bio(username, path):
 def serialize_participant(participant):
     return {
         "user_id": participant.id,
-        "first_name": participant.first_name,
+        "first_name": (
+            participant.first_name if hasattr(participant, "first_name") else None
+        ),
         "last_name": (
             participant.last_name if hasattr(participant, "last_name") else None
         ),
