@@ -11,7 +11,7 @@ import re
 
 from telethon.sessions import StringSession
 from telethon import TelegramClient
-from telethon.tl.types import Channel
+from telethon.tl.types import Channel, ChannelForbidden
 from telethon import functions, errors
 from datetime import datetime
 from dotenv import load_dotenv
@@ -178,6 +178,7 @@ async def parse_chat(client, chat, user_data):
                     if (
                         participant is not None
                         and not isinstance(participant, Channel)
+                        and not isinstance(participant, ChannelForbidden)
                         and not getattr(participant, "bot", False)
                     ):
                         if participant.id not in user_data["accounts"]:
@@ -207,6 +208,7 @@ async def parse_chat(client, chat, user_data):
             if (
                 sender is not None
                 and not isinstance(sender, Channel)
+                and not isinstance(sender, ChannelForbidden)
                 and not getattr(sender, "bot", False)
             ):
                 if sender.id not in user_data["accounts"]:
