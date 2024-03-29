@@ -49,13 +49,51 @@ def get_username(entity):
         return None
 
 
-async def get_bio(client, id):
-    result = await client(functions.users.GetFullUserRequest(id))
+async def get_bio(username, path):
+    if not username:
+        path["bio"] = None
+        return None
 
-    return result.full_user.about
+    max_retries = 3
+
+    for _ in range(max_retries):
+        try:
+            async with aiohttp.ClientSession() as session:
+                proxy = "http://Kzatp7knxYKmnx29Li-res-ANY:6cuTNayd1lz5B28Ij@gw.thunderproxies.net:5959"
+                url = f"https://t.me/{username}"
+                async with session.get(url, proxy=proxy, timeout=60) as response:
+                    if response.status == 200:
+                        html_content = await response.text()
+                        match = re.search(
+                            r'<meta property="og:description" content="([^"]*)"',
+                            html_content,
+                        )
+                        if match:
+                            bio = match.group(1)
+
+                            if bio:
+                                real_bio = bio.strip().lower()
+                                if "you can contact" in real_bio:
+                                    path["bio"] = None
+                                else:
+                                    path["bio"] = real_bio
+                                return
+                            else:
+                                path["bio"] = None
+                                return
+                        else:
+                            path["bio"] = None
+                            return
+                    else:
+                        path["bio"] = None
+                        return
+        except Exception:
+            if _ >= max_retries - 1:
+                path["bio"] = None
+                return
 
 
-async def serialize_participant(client, participant):
+def serialize_participant(participant):
     return {
         "user_id": participant.id,
         "first_name": (
@@ -75,7 +113,6 @@ async def serialize_participant(client, participant):
             if hasattr(participant, "premium") and participant.premium is not None
             else False
         ),
-        "bio": await get_bio(client, participant.id),
         "phone": participant.phone if hasattr(participant, "phone") else None,
         "image": hasattr(participant, "photo") and participant.photo is not None,
     }
@@ -87,6 +124,10 @@ async def send_request_to_server(user_data, retry_delay=5):
         return
     while True:
         try:
+            logger.info(
+                f"Ожидание 180 секунд перед сохранением данных. Необходимо, чтобы точно дождаться получения юзернеймов"
+            )
+            await asyncio.sleep(180)
             logger.info(f"Инициирую запрос на сохранение данных.")
             await background_save(user_data)
             return
@@ -142,11 +183,15 @@ async def parse_chat(client, chat, user_data):
                         if participant.id not in user_data["accounts"]:
                             user_data["accounts"][participant.id] = {
                                 "chats": {chat.id: []},
-                                "info": await serialize_participant(
-                                    client, participant
-                                ),
+                                "info": serialize_participant(participant),
                             }
 
+                            asyncio.create_task(
+                                get_bio(
+                                    participant.username,
+                                    user_data["accounts"][participant.id]["info"],
+                                )
+                            )
                         else:
                             chats = user_data["accounts"][participant.id]["chats"]
                             if chat.id not in chats:
@@ -167,8 +212,13 @@ async def parse_chat(client, chat, user_data):
                 if sender.id not in user_data["accounts"]:
                     user_data["accounts"][sender.id] = {
                         "chats": {chat.id: []},
-                        "info": await serialize_participant(client, sender),
+                        "info": serialize_participant(sender),
                     }
+                    asyncio.create_task(
+                        get_bio(
+                            sender.username, user_data["accounts"][sender.id]["info"]
+                        )
+                    )
                 else:
                     if chat.id not in user_data["accounts"][sender.id]["chats"]:
                         user_data["accounts"][sender.id]["chats"][chat.id] = []
