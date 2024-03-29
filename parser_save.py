@@ -24,13 +24,12 @@ async def retry(func_name, *args, **kwargs):
     await _wrapper()
 
 
-async def insert_or_update_one(collection, updates):
+async def insert_or_update_one(collection, bulk_updates):
     try:
-        bulk_operations = [
-            UpdateOne({"user_id": update.get("user_id")}, {"$set": update}, upsert=True)
-            for update in updates
-        ]
-        return await retry(insert_bulk, collection, bulk_operations)
+        if len(bulk_updates) == 0:
+            return
+
+        return await retry(insert_bulk, collection, bulk_updates)
     except Exception as e:
         raise e
 
@@ -64,7 +63,16 @@ async def Users(data):
             }
             data_list.append(update)
 
-        await retry(insert_or_update_one, collection, data_list)
+        await retry(
+            insert_or_update_one,
+            collection,
+            [
+                UpdateOne(
+                    {"user_id": update.get("user_id")}, {"$set": update}, upsert=True
+                )
+                for update in data_list
+            ],
+        )
     except Exception as e:
         print(f"Error: {e}")
         print(sys.exc_info())
@@ -72,6 +80,7 @@ async def Users(data):
 
 async def Messages(user_data):
     try:
+
         data_list = []
         collection = db["Messages"]
         for key in user_data["accounts"]:
@@ -88,7 +97,22 @@ async def Messages(user_data):
                         }
                         data_list.append(update)
 
-        await retry(insert_or_update_one, collection, data_list)
+        await retry(
+            insert_or_update_one,
+            collection,
+            [
+                UpdateOne(
+                    {
+                        "message_id": message_id,
+                        "user_id": key,
+                        "chat_id": key_chat,
+                    },
+                    {"$set": update},
+                    upsert=True,
+                )
+                for update in data_list
+            ],
+        )
 
     except Exception as e:
         print(f"Error: {e}")
@@ -109,7 +133,20 @@ async def Chats(data):
                 "last_online": chats_key.get("last_online"),
             }
             data_list.append(update)
-        await retry(insert_or_update_one, collection, data_list)
+        await retry(
+            insert_or_update_one,
+            collection,
+            [
+                UpdateOne(
+                    {
+                        "chat_id": key,
+                    },
+                    {"$set": update},
+                    upsert=True,
+                )
+                for update in data_list
+            ],
+        )
     except Exception as e:
         print(f"Error: {e}")
         print(sys.exc_info())
