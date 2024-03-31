@@ -10,9 +10,7 @@ USER = os.getenv("USERNAME_DB")
 PASSWORD = os.getenv("PASSWORD_DB")
 conn = psycopg2.connect(host=HOST, database=DATABASE, user=USER, password=PASSWORD)
 
-cursor = conn.cursor()
-
-async def Users(data):
+async def Users(data, cursor):
     try:
         initial_user_data = []
         for key in data["accounts"]:
@@ -50,20 +48,22 @@ async def Users(data):
         print(sys.exc_info())
 
 
-async def Chats(data):
+async def Chats(data, cursor):
     initial_data = []
     try:
         for key in data["chats"]:
             chats_key = data["chats"][key]
             chat_id = key
+            parent_link = chats_key.get("parent_link")
+            children_link = chats_key.get("children_link")
             username = chats_key.get("username")
             title = chats_key.get("title")
             last_online = chats_key.get("last_online")
-            initial_data.append((chat_id, username, title, last_online))
+            initial_data.append((chat_id, parent_link,children_link, username, title, last_online))
         cursor.executemany(
-            "INSERT INTO Chats (chat_id, username, title, last_online) VALUES (%s, %s, %s, %s) "
+            "INSERT INTO Chats (chat_id, parent_link, children_link, username, title, last_online) VALUES (%s, %s, %s, %s, %s, %s) "
             "ON CONFLICT (chat_id) DO UPDATE SET "
-            "username = EXCLUDED.username, title = EXCLUDED.title, last_online = EXCLUDED.last_online",
+            "username = EXCLUDED.username,parent_link = EXCLUDED.parent_link,children_link = EXCLUDED.children_link, title = EXCLUDED.title, last_online = EXCLUDED.last_online",
             initial_data,
         )
         conn.commit()
@@ -72,7 +72,7 @@ async def Chats(data):
         conn.rollback()
 
 
-async def Messages(user_data):
+async def Messages(user_data, cursor):
     try:
         initial_data = []
         for key in user_data["accounts"]:
@@ -99,9 +99,10 @@ async def Messages(user_data):
 
 async def background_save(data):
     try:
-        await Chats(data)
-        await Users(data)
-        await Messages(data)
+        cursor = conn.cursor()
+        await Chats(data, cursor)
+        await Users(data, cursor)
+        await Messages(data, cursor)
     except Exception as e:
         print(f"Error: {e}")
         print(sys.exc_info())

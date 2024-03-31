@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 HOST = os.getenv("HOST")
 DATABASE = os.getenv("DATABASE")
-USER = os.getenv("USER")
-PASSWORD = os.getenv("PASSWORD")
+USER = os.getenv("USERNAME_DB")
+PASSWORD = os.getenv("PASSWORD_DB")
 
 conn = psycopg2.connect(host=HOST, database=DATABASE, user=USER, password=PASSWORD)
 cursor = conn.cursor()
@@ -15,6 +15,8 @@ create_chats_table_query = """
 CREATE TABLE IF NOT EXISTS Chats (
     id SERIAL PRIMARY KEY,
     chat_id BIGINT UNIQUE,
+    parent_link TEXT,
+    children_link TEXT,
     username TEXT,
     title TEXT,
     last_online TIMESTAMP

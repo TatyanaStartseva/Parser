@@ -136,10 +136,16 @@ async def send_request_to_server(user_data, retry_delay=5):
             await asyncio.sleep(retry_delay)
 
 
-async def parse_chat(client, chat, user_data):
+async def parse_chat(client, chat, user_data, link):
     try:
         logger.info(f"Обработка чата: {chat.title}")
+        if chat.username is not None:
+            chat_username = "https://t.me/" + chat.username.lower()
+        else:
+            chat_username = None
         chat_data = {
+            "parent_link": link.lower(),
+            "children_link": chat_username,
             "username": chat.username,
             "title": chat.title if hasattr(chat, "title") else None,
             "last_online": (
@@ -245,7 +251,7 @@ async def parse_chat_by_link(client, link, user_data):
     chat = await client.get_entity(link)
     if chat.megagroup:
         logger.info(f"Чат {link} в работе.")
-        await parse_chat(client, chat, user_data)
+        await parse_chat(client, chat, user_data, link)
     else:
         logger.info(f"Ссылка {link} не является чатом, попытка извлечь чат...")
         full = await client(functions.channels.GetFullChannelRequest(chat))
@@ -256,7 +262,7 @@ async def parse_chat_by_link(client, link, user_data):
                         f"Исходя из ссылки {link} найден прикрепленный чат {chat.id}."
                     )
                     logger.info(f"Чат {chat.id} от канала {link} в работе.")
-                    await parse_chat(client, chat, user_data)
+                    await parse_chat(client, chat, user_data, link )
 
 
 async def main(api_id, api_hash, session_value):
@@ -264,7 +270,6 @@ async def main(api_id, api_hash, session_value):
     try:
         res = requests.get(f"http://{IP}/link")
         link = res.json()
-
         if link:
             logger.info(f"Ссылка, полученная для парсинга: {link}")
             async with TelegramClient(
