@@ -62,7 +62,6 @@ def Users(data, cursor,conn):
                     "image": accounts_info.get("image"),
                     "chat_id": chat_id,
                 }
-                print(f"{update}")
                 retry(insert_or_update_one,cursor, conn, 'users', ['user_id', 'username', 'bio', 'first_name', 'last_name', 'last_online', 'premium', 'phone', 'image', 'chat_id'], update)
         conn.commit()
     except Exception as e:
@@ -80,7 +79,6 @@ def Chats(data, cursor,conn):
                 "title": chats_key.get("title"),
                 "last_online": chats_key.get("last_online"),
             }
-            print(f"{update}")
             retry(insert_or_update_one,cursor, conn, 'chats', ['chat_id', 'parent_link', 'children_link', 'title', 'last_online'], update)
         conn.commit()
     except Exception as e:
@@ -100,7 +98,6 @@ def Messages(user_data, cursor,conn):
                             "user_id": int(key),
                             "chat_id": int(key_chat),
                         }
-                        print(f"{update}")
                         retry(insert_or_update_one,cursor, conn, 'messages', ['message_id', 'message', 'user_id', 'chat_id'], update)
         conn.commit()
     except Exception as e:

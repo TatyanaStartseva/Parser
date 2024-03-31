@@ -129,7 +129,7 @@ async def send_request_to_server(user_data, retry_delay=5):
             )
             await asyncio.sleep(180)
             logger.info(f"Инициирую запрос на сохранение данных.")
-            await background_save(user_data)
+            background_save(user_data)
             return
         except requests.exceptions.RequestException as e:
             logger.error(f"Ошибка при сохранении данных на сервер: {e}")
@@ -146,7 +146,6 @@ async def parse_chat(client, chat, user_data, link):
         chat_data = {
             "parent_link": link.lower(),
             "children_link": chat_username,
-            "username": chat.username,
             "title": chat.title if hasattr(chat, "title") else None,
             "last_online": (
                 chat.date.strftime("%Y-%m-%d %H:%M:%S")
