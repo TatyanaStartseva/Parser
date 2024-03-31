@@ -6,14 +6,11 @@ from dotenv import load_dotenv
 load_dotenv()
 HOST = os.getenv("HOST")
 DATABASE = os.getenv("DATABASE")
-USER = os.getenv("USER")
-PASSWORD = os.getenv("PASSWORD")
-
+USER = os.getenv("USERNAME_DB")
+PASSWORD = os.getenv("PASSWORD_DB")
 conn = psycopg2.connect(host=HOST, database=DATABASE, user=USER, password=PASSWORD)
 
 cursor = conn.cursor()
-
-
 
 async def Users(data):
     try:
@@ -22,25 +19,24 @@ async def Users(data):
             user_id = key
             accounts_info = data["accounts"][key]["info"]
             chat_id = list(data["accounts"][key]["chats"].keys())[0]
-            username = (
-                accounts_info.get("username", "").lower()
-                if accounts_info.get("username")
-                else None
-            )
-            initial_user_data.append(
-                (
-                    user_id,
-                    username,
-                    accounts_info.get("bio"),
-                    accounts_info.get("first_name"),
-                    accounts_info.get("last_name"),
-                    accounts_info.get("last_online"),
-                    accounts_info.get("premium"),
-                    accounts_info.get("phone"),
-                    accounts_info.get("image"),
-                    chat_id,
+            if accounts_info.get("username") is not None and accounts_info.get("first_name") is not None:
+                username = (
+                    accounts_info.get("username").lower()
                 )
-            )
+                initial_user_data.append(
+                    (
+                        user_id,
+                        username,
+                        accounts_info.get("bio"),
+                        accounts_info.get("first_name"),
+                        accounts_info.get("last_name"),
+                        accounts_info.get("last_online"),
+                        accounts_info.get("premium"),
+                        accounts_info.get("phone"),
+                        accounts_info.get("image"),
+                        chat_id,
+                    )
+                )
 
         cursor.executemany(
             "INSERT INTO Users (user_id, username, bio, first_name, last_name, last_online, premium, "
@@ -81,12 +77,14 @@ async def Messages(user_data):
         initial_data = []
         for key in user_data["accounts"]:
             for key_chat in user_data["accounts"][key]["chats"]:
+                accounts_info = user_data["accounts"][key]["info"]
                 for message_data in user_data["accounts"][key]["chats"][key_chat]:
-                    message_id = message_data["message_id"]
-                    text = message_data["text"]
-                    user_id = int(key)
-                    chat_id = int(key_chat)
-                    initial_data.append((message_id, text, user_id, chat_id))
+                    if accounts_info.get("username") is not None and accounts_info.get("first_name") is not None:
+                        message_id = message_data["message_id"]
+                        text = message_data["text"]
+                        user_id = int(key)
+                        chat_id = int(key_chat)
+                        initial_data.append((message_id, text, user_id, chat_id))
         cursor.executemany(
             "INSERT INTO Messages (message_id, message, user_id, chat_id) VALUES (%s, %s, %s, %s) "
             "ON CONFLICT (message_id) DO UPDATE SET "
