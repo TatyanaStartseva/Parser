@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS Chats (
     chat_id BIGINT UNIQUE,
     parent_link TEXT,
     children_link TEXT,
-    username TEXT,
     title TEXT,
     last_online TIMESTAMP
 )

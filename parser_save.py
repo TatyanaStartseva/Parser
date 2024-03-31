@@ -56,14 +56,13 @@ async def Chats(data, cursor):
             chat_id = key
             parent_link = chats_key.get("parent_link")
             children_link = chats_key.get("children_link")
-            username = chats_key.get("username")
             title = chats_key.get("title")
             last_online = chats_key.get("last_online")
-            initial_data.append((chat_id, parent_link,children_link, username, title, last_online))
+            initial_data.append((chat_id, parent_link, children_link, title, last_online))
         cursor.executemany(
-            "INSERT INTO Chats (chat_id, parent_link, children_link, username, title, last_online) VALUES (%s, %s, %s, %s, %s, %s) "
+            "INSERT INTO Chats (chat_id, parent_link, children_link, title, last_online) VALUES ( %s, %s, %s, %s, %s) "
             "ON CONFLICT (chat_id) DO UPDATE SET "
-            "username = EXCLUDED.username,parent_link = EXCLUDED.parent_link,children_link = EXCLUDED.children_link, title = EXCLUDED.title, last_online = EXCLUDED.last_online",
+            "parent_link = EXCLUDED.parent_link,children_link = EXCLUDED.children_link, title = EXCLUDED.title, last_online = EXCLUDED.last_online",
             initial_data,
         )
         conn.commit()
