@@ -1,8 +1,7 @@
 import sys
 import psycopg2
 import os
-
-from celery.utils import time
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -21,7 +20,16 @@ def connect_to_database():
             print(f"Error connecting to the database: {e}")
             print("Reconnecting in 5 seconds...")
             time.sleep(5)
-
+def retry(func_name, *args, **kwargs):
+    def _wrapper():
+        while True:
+            try:
+                func_name(*args, **kwargs)
+                break
+            except Exception as e:
+                print(f"Произошла ошибка: {e}. Повторная попытка...")
+                time.sleep(1)
+    _wrapper()
 def insert_or_update_one(cursor, conn, table_name, fields, updates):
     try:
         fields_str = ', '.join(fields)
@@ -55,7 +63,7 @@ def Users(data, cursor,conn):
                     "chat_id": chat_id,
                 }
                 print(f"{update}")
-                insert_or_update_one(cursor, conn, 'users', ['user_id', 'username', 'bio', 'first_name', 'last_name', 'last_online', 'premium', 'phone', 'image', 'chat_id'], update)
+                retry(insert_or_update_one,cursor, conn, 'users', ['user_id', 'username', 'bio', 'first_name', 'last_name', 'last_online', 'premium', 'phone', 'image', 'chat_id'], update)
         conn.commit()
     except Exception as e:
         print(f"Error: {e}")
@@ -73,7 +81,7 @@ def Chats(data, cursor,conn):
                 "last_online": chats_key.get("last_online"),
             }
             print(f"{update}")
-            insert_or_update_one(cursor, conn, 'chats', ['chat_id', 'parent_link', 'children_link', 'title', 'last_online'], update)
+            retry(insert_or_update_one,cursor, conn, 'chats', ['chat_id', 'parent_link', 'children_link', 'title', 'last_online'], update)
         conn.commit()
     except Exception as e:
         print(f"Error: {e}")
@@ -93,7 +101,7 @@ def Messages(user_data, cursor,conn):
                             "chat_id": int(key_chat),
                         }
                         print(f"{update}")
-                        insert_or_update_one(cursor, conn, 'messages', ['message_id', 'message', 'user_id', 'chat_id'], update)
+                        retry(insert_or_update_one,cursor, conn, 'messages', ['message_id', 'message', 'user_id', 'chat_id'], update)
         conn.commit()
     except Exception as e:
         print(f"Error: {e}")
