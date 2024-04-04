@@ -56,7 +56,7 @@ async def handle_chats_links(request):
         wb = Workbook()
         ws = wb.active
         ws.append(
-            {
+            [
                 "user_id",
                 "username",
                 "bio",
@@ -66,7 +66,7 @@ async def handle_chats_links(request):
                 "premium",
                 "phone",
                 "image",
-            }
+            ]
         )
         for user in chat_users:
             user_data = [
