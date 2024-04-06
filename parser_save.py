@@ -30,16 +30,26 @@ def retry(func_name, *args, **kwargs):
                 print(f"Произошла ошибка: {e}. Повторная попытка...")
                 time.sleep(1)
     _wrapper()
+
 def insert_or_update_one(cursor, conn, table_name, fields, updates):
     try:
         fields_str = ', '.join(fields)
         placeholders = ', '.join(['%(' + field + ')s' for field in fields])
-        cursor.execute(
-            f"INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders}) "
-            f"ON CONFLICT ({fields[0]}) DO NOTHING", updates)
+        select_query = f"SELECT * FROM {table_name} WHERE {fields[0]} = %(key_value)s"
+        cursor.execute(select_query, {'key_value': updates[fields[0]]})
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            update_str = ', '.join([f"{field} = %({field})s" for field in updates.keys()])
+            update_query = f"UPDATE {table_name} SET {update_str} WHERE {fields[0]} = %(key_value)s"
+            cursor.execute(update_query, {'key_value': updates[fields[0]], **updates})
+        else:
+            insert_query = f"INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders})"
+            cursor.execute(insert_query, updates)
         conn.commit()
     except Exception as e:
         raise e
+
 
 def Users(data, cursor,conn):
     try:
