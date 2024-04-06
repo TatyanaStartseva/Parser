@@ -9,6 +9,7 @@ import requests
 import sys
 import re
 
+from aiohttp import web
 from telethon.sessions import StringSession
 from telethon import TelegramClient
 from telethon.tl.types import Channel, ChannelForbidden
@@ -35,6 +36,16 @@ file_handler.setFormatter(
     logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s")
 )
 logger.addHandler(file_handler)
+
+
+async def handle_links(request):
+    data = await request.json()
+    link = data.get("link")
+    return web.Response(text="Received link: {}".format(link))
+
+
+app = web.Application()
+app.add_routes([web.post("/handle_links", handle_links)])
 
 
 def generate_random_string(length):
@@ -258,7 +269,7 @@ async def parse_chat_by_link(client, link, user_data):
                         f"Исходя из ссылки {link} найден прикрепленный чат {chat.id}."
                     )
                     logger.info(f"Чат {chat.id} от канала {link} в работе.")
-                    await parse_chat(client, chat, user_data, link )
+                    await parse_chat(client, chat, user_data, link)
 
 
 async def main(api_id, api_hash, session_value):
@@ -289,7 +300,8 @@ async def main(api_id, api_hash, session_value):
                     logger.error(f"Ссылка {link} не распаршена, произошла ошибка. {e}")
                 print("Выполнение скрипта успешно завершено")
         else:
-            print("База данных для парсинга пуста. Повтор попытки через 60s.")
+            print("База данных для парсинга пуста. Завершение работы через 60s.")
+        await asyncio.sleep(60)
     except Exception as e:
         logger.error(f"Произошла глобальная ошибка. {e}")
 
@@ -298,13 +310,6 @@ api_id = sys.argv[1]
 api_hash = sys.argv[2]
 session_value = sys.argv[3]
 
-
-async def keep():
-    while True:
-        await main(api_id, api_hash, session_value)
-        await asyncio.sleep(60)
-
-
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(keep())
+    loop.run_until_complete(main(api_id, api_hash, session_value))
