@@ -51,7 +51,7 @@ def insert_or_update_one(cursor, conn, table_name, fields, updates):
                     existing_record[fields.index("user_id")] != updates["user_id"]
                     or existing_record[fields.index("chat_id")] != updates["chat_id"]
                 ):
-                    insert_query = f"INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders})"
+                    insert_query = f"INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders}) ON CONFLICT DO NOTHING"
                     cursor.execute(insert_query, updates)
             else:
                 update_str = ", ".join(
