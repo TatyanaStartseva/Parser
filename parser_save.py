@@ -62,9 +62,7 @@ def insert_or_update_one(cursor, conn, table_name, fields, updates):
                     update_query, {"key_value": updates[fields[0]], **updates}
                 )
         else:
-            insert_query = (
-                f"INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders})"
-            )
+            insert_query = f"INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders}) ON CONFLICT DO NOTHING"
             cursor.execute(insert_query, updates)
         conn.commit()
     except Exception as e:
