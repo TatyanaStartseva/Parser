@@ -66,6 +66,7 @@ def insert_or_update_one(cursor, conn, table_name, fields, updates):
             cursor.execute(insert_query, updates)
         conn.commit()
     except Exception as e:
+        conn.rollback()
         raise e
 
 
@@ -122,6 +123,7 @@ def Users(data, cursor, conn):
                 )
         conn.commit()
     except Exception as e:
+        conn.rollback()
         print(f"Error: {e}")
         print(sys.exc_info())
 
@@ -147,8 +149,8 @@ def Chats(data, cursor, conn):
             )
         conn.commit()
     except Exception as e:
-        print(f"Error: {e}")
         conn.rollback()
+        print(f"Error: {e}")
 
 
 def Messages(user_data, cursor, conn):
@@ -189,6 +191,7 @@ def background_save(data):
         Users(data, cursor, conn)
         Messages(data, cursor, conn)
     except Exception as e:
+        conn.rollback()
         print(f"Error: {e}")
         print(sys.exc_info())
     finally:
