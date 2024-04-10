@@ -46,7 +46,7 @@ def insert_or_update_one(cursor, conn, table_name, fields, updates):
         cursor.execute(select_query, {"key_value": updates[fields[0]]})
         existing_record = cursor.fetchone()
         if existing_record is not None:
-            if table_name == "user_chat":
+            if table_name == "user_chat" or table_name == "messages":
                 if (
                     existing_record[fields.index("user_id")] != updates["user_id"]
                     or existing_record[fields.index("chat_id")] != updates["chat_id"]
