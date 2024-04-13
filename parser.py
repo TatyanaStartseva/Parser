@@ -137,7 +137,7 @@ async def send_request_to_server(user_data, retry_delay=5):
             )
             await asyncio.sleep(180)
             logger.info(f"Инициирую запрос на сохранение данных.")
-            background_save(user_data)
+            await background_save(user_data)
             return
         except requests.exceptions.RequestException as e:
             logger.error(f"Ошибка при сохранении данных на сервер: {e}")
