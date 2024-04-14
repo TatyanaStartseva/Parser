@@ -205,9 +205,19 @@ async def Messages(user_data, pool):
                 for key in user_data["accounts"]:
                     for key_chat in user_data["accounts"][key]["chats"]:
                         accounts_info = user_data["accounts"][key]["info"]
+                        sent_messages_count = {}
                         for message_data in user_data["accounts"][key]["chats"][
                             key_chat
                         ]:
+                            message_count = sent_messages_count.get(
+                                message_data["text"], 0
+                            )
+                            if message_count >= 3:
+                                continue
+                            sent_messages_count[message_data["text"]] = (
+                                message_count + 1
+                            )
+
                             if (
                                 accounts_info.get("username") is not None
                                 and accounts_info.get("first_name") is not None
@@ -230,6 +240,7 @@ async def Messages(user_data, pool):
                                 )
     except Exception as e:
         logger.error(f"Error: {e}")
+
 
 
 async def background_save(data):
