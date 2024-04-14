@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS Users (
     last_online TIMESTAMP,
     premium BOOL,
     phone TEXT,
-    image BOOL
+    image BOOL,
+    spamer BOOL
 )
 """
 cursor.execute(create_users_table_query)
@@ -51,15 +52,3 @@ CREATE TABLE IF NOT EXISTS User_Chat (
 cursor.execute(create_user_chat_table_query)
 conn.commit()
 
-create_messages_table_query = """
-CREATE TABLE IF NOT EXISTS Messages (
-    message_id BIGINT,
-    message TEXT,
-    user_id BIGINT,
-    chat_id BIGINT,
-    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (chat_id) REFERENCES Chats(chat_id) ON DELETE CASCADE
-)
-"""
-cursor.execute(create_messages_table_query)
-conn.commit()
