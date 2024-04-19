@@ -65,6 +65,7 @@ async def insert_or_update_one(pool, table_name, fields, updates):
                     existing_record = await conn.fetchrow(
                         select_query, updates[fields[0]]
                     )
+                    print(f"{existing_record}")
                 if not existing_record:
                     insert_query = f"INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders}) ON CONFLICT DO NOTHING "
                     await conn.execute(insert_query, *values)
@@ -110,76 +111,80 @@ async def Users(data, pool):
                                     )
                                     continue
                                 else:
-                                    await retry(
-                                        insert_or_update_one,
-                                        pool,
-                                        "users",
-                                        ["user_id", "spamer"],
-                                        update_spamer,
-                                    )
+                                    if (
+                                            accounts_info.get("username") is not None
+                                            and accounts_info.get("first_name") is not None
+                                    ):
+                                        await retry(
+                                            insert_or_update_one,
+                                            pool,
+                                            "users",
+                                            ["user_id", "spamer"],
+                                            update_spamer,
+                                        )
                             sent_messages_count[message_data["text"]] = (
                                 message_count + 1
                             )
-                        accounts_info = data["accounts"][key]["info"]
-                        chat_id = list(data["accounts"][key]["chats"].keys())[0]
-                        if (
-                            accounts_info.get("username") is not None
-                            and accounts_info.get("first_name") is not None
-                        ):
-                            username = accounts_info.get("username").lower()
-                            last_online = (
-                                datetime.datetime.strptime(
-                                    accounts_info.get("last_online"),
-                                    "%Y-%m-%d %H:%M:%S",
+                            accounts_info = data["accounts"][key]["info"]
+                            chat_id = list(data["accounts"][key]["chats"].keys())[0]
+                            if (
+                                accounts_info.get("username") is not None
+                                and accounts_info.get("first_name") is not None
+                            ):
+                                username = accounts_info.get("username").lower()
+                                last_online = (
+                                    datetime.datetime.strptime(
+                                        accounts_info.get("last_online"),
+                                        "%Y-%m-%d %H:%M:%S",
+                                    )
+                                    if accounts_info.get("last_online") is not None
+                                    else None
                                 )
-                                if accounts_info.get("last_online") is not None
-                                else None
-                            )
-                            update = {
-                                "user_id": key,
-                                "username": username,
-                                "bio": accounts_info.get("bio"),
-                                "first_name": accounts_info.get("first_name"),
-                                "last_name": accounts_info.get("last_name"),
-                                "last_online": last_online,
-                                "premium": accounts_info.get("premium"),
-                                "phone": accounts_info.get("phone"),
-                                "image": accounts_info.get("image"),
-                            }
-                            update_user_chat = {
-                                "user_id": key,
-                                "chat_id": chat_id,
-                            }
-                            logger.info(
-                                f"Инициализирую запрос на вставку в БД {update}"
-                            )
-                            await retry(
-                                insert_or_update_one,
-                                pool,
-                                "users",
-                                [
-                                    "user_id",
-                                    "username",
-                                    "bio",
-                                    "first_name",
-                                    "last_name",
-                                    "last_online",
-                                    "premium",
-                                    "phone",
-                                    "image",
-                                ],
-                                update,
-                            )
-                            logger.info(
-                                f"Инициализирую запрос на вставку в БД {update_user_chat}"
-                            )
-                            await retry(
-                                insert_or_update_one,
-                                pool,
-                                "user_chat",
-                                ["user_id", "chat_id"],
-                                update_user_chat,
-                            )
+                                update = {
+                                    "user_id": key,
+                                    "username": username,
+                                    "bio": accounts_info.get("bio"),
+                                    "first_name": accounts_info.get("first_name"),
+                                    "last_name": accounts_info.get("last_name"),
+                                    "last_online": last_online,
+                                    "premium": accounts_info.get("premium"),
+                                    "phone": accounts_info.get("phone"),
+                                    "image": accounts_info.get("image"),
+                                }
+                                update_user_chat = {
+                                    "user_id": key,
+                                    "chat_id": chat_id,
+                                }
+                                logger.info(
+                                    f"Инициализирую запрос на вставку в БД {update}"
+                                )
+                                await retry(
+                                    insert_or_update_one,
+                                    pool,
+                                    "users",
+                                    [
+                                        "user_id",
+                                        "username",
+                                        "bio",
+                                        "first_name",
+                                        "last_name",
+                                        "last_online",
+                                        "premium",
+                                        "phone",
+                                        "image",
+                                    ],
+                                    update,
+                                )
+                                logger.info(
+                                    f"Инициализирую запрос на вставку в БД {update_user_chat}"
+                                )
+                                await retry(
+                                    insert_or_update_one,
+                                    pool,
+                                    "user_chat",
+                                    ["user_id", "chat_id"],
+                                    update_user_chat,
+                                )
     except Exception as e:
         logger.error(f"Error: {e}")
         logger.error(sys.exc_info())
