@@ -277,7 +277,6 @@ async def main(api_id, api_hash, session_value):
     try:
         res = requests.get(f"http://{IP}/link")
         link = res.json()
-        link = "https://t.me/moscowmap"
         if link:
             logger.info(f"Ссылка, полученная для парсинга: {link}")
             async with TelegramClient(
