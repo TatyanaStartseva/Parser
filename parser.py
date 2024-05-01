@@ -70,7 +70,7 @@ async def get_bio(username, path):
     for _ in range(max_retries):
         try:
             async with aiohttp.ClientSession() as session:
-                proxy = "http://gsDIvA0qq3ZaPm67Hm-dc-ANY:IBSnNDz4adZ76Or@gw.thunderproxies.net:5959"
+                proxy = "gsDIvA0qq3ZaPm67Hm-dc-ANY:FMOC7cexv7V33La@gw.thunderproxies.net:5959"
                 url = f"https://t.me/{username}"
                 async with session.get(url, proxy=proxy, timeout=60) as response:
                     if response.status == 200:
@@ -135,7 +135,7 @@ async def send_request_to_server(user_data, retry_delay=5):
             logger.info(
                 f"Ожидание 180 секунд перед сохранением данных. Необходимо, чтобы точно дождаться получения юзернеймов"
             )
-            await asyncio.sleep(180)
+            await asyncio.sleep(180) #180
             logger.info(f"Инициирую запрос на сохранение данных.")
             await background_save(user_data)
             return
@@ -216,7 +216,7 @@ async def parse_chat(client, chat, user_data, link):
                 )
         processed_messages = 0
 
-        async for message in client.iter_messages(chat, limit=25000):
+        async for message in client.iter_messages(chat, limit=25000): #25000
             sender = message.sender
             if (
                 sender is not None
@@ -277,6 +277,7 @@ async def main(api_id, api_hash, session_value):
     try:
         res = requests.get(f"http://{IP}/link")
         link = res.json()
+        link = "https://t.me/moscowmap"
         if link:
             logger.info(f"Ссылка, полученная для парсинга: {link}")
             async with TelegramClient(
