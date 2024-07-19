@@ -33,8 +33,7 @@ CREATE TABLE IF NOT EXISTS Users (
     last_online TIMESTAMP,
     premium BOOL,
     phone TEXT,
-    image BOOL,
-    spamer BOOL
+    image BOOL
 )
 """
 cursor.execute(create_users_table_query)

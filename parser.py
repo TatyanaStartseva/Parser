@@ -61,16 +61,12 @@ def get_username(entity):
 
 
 async def get_bio(username, path):
-    if not username:
-        path["bio"] = None
-        return None
-
     max_retries = 3
 
     for _ in range(max_retries):
         try:
             async with aiohttp.ClientSession() as session:
-                proxy = "gsDIvA0qq3ZaPm67Hm-dc-ANY:FMOC7cexv7V33La@gw.thunderproxies.net:5959"
+                proxy = "http://kgJ3kE6qMfkqye32Al-dc-ANY:64GfvKmaP3U10Vs@gw.thunderproxy.net:5959"
                 url = f"https://t.me/{username}"
                 async with session.get(url, proxy=proxy, timeout=60) as response:
                     if response.status == 200:
@@ -135,7 +131,7 @@ async def send_request_to_server(user_data, retry_delay=5):
             logger.info(
                 f"Ожидание 180 секунд перед сохранением данных. Необходимо, чтобы точно дождаться получения юзернеймов"
             )
-            await asyncio.sleep(180) #180
+            await asyncio.sleep(180)
             logger.info(f"Инициирую запрос на сохранение данных.")
             await background_save(user_data)
             return
@@ -187,16 +183,17 @@ async def parse_chat(client, chat, user_data, link):
                     logger.info(
                         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Обработка участника {processed_participants}/{total_participants}"
                     )
+                    if participant is None or  not getattr(participant, "username", None):
+                        continue
 
                     if (
-                        participant is not None
-                        and not isinstance(participant, Channel)
+                        not isinstance(participant, Channel)
                         and not isinstance(participant, ChannelForbidden)
                         and not getattr(participant, "bot", False)
                     ):
                         if participant.id not in user_data["accounts"]:
                             user_data["accounts"][participant.id] = {
-                                "chats": {chat.id: []},
+                                "chats": set([chat.id]),
                                 "info": serialize_participant(participant),
                             }
 
@@ -209,24 +206,25 @@ async def parse_chat(client, chat, user_data, link):
                         else:
                             chats = user_data["accounts"][participant.id]["chats"]
                             if chat.id not in chats:
-                                chats[chat.id] = []
+                                chats.add(chat.id)
             except Exception as e:
                 logger.error(
                     f"Произошла ошибка при получении участников по букве {letter} в чате {chat.title}: {e}"
                 )
         processed_messages = 0
 
-        async for message in client.iter_messages(chat, limit=25000): #25000
+        async for message in client.iter_messages(chat, limit=25000):
             sender = message.sender
+            if sender is None or  not getattr(sender, "username", None):
+                continue
             if (
-                sender is not None
-                and not isinstance(sender, Channel)
+                not isinstance(sender, Channel)
                 and not isinstance(sender, ChannelForbidden)
                 and not getattr(sender, "bot", False)
             ):
                 if sender.id not in user_data["accounts"]:
                     user_data["accounts"][sender.id] = {
-                        "chats": {chat.id: []},
+                        "chats": set([chat.id]),
                         "info": serialize_participant(sender),
                     }
                     asyncio.create_task(
@@ -236,19 +234,13 @@ async def parse_chat(client, chat, user_data, link):
                     )
                 else:
                     if chat.id not in user_data["accounts"][sender.id]["chats"]:
-                        user_data["accounts"][sender.id]["chats"][chat.id] = []
+                        user_data["accounts"][sender.id]["chats"].add(chat.id)
 
                 processed_messages += 1
                 progress = processed_messages / total_messages * 100
                 logger.info(
                     f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Обработка сообщений: {processed_messages}/{total_messages} ({progress:.2f}%)"
                 )
-
-                if message.text and message.text.strip() != "":
-                    user_data["accounts"][sender.id]["chats"][chat.id].append(
-                        {"message_id": message.id, "text": message.text}
-                    )
-
     except Exception as e:
         logger.error(f"Произошла ошибка при обработке чата. {e}")
         logger.exception(e)
@@ -260,15 +252,11 @@ async def parse_chat_by_link(client, link, user_data):
         logger.info(f"Чат {link} в работе.")
         await parse_chat(client, chat, user_data, link)
     else:
-        logger.info(f"Ссылка {link} не является чатом, попытка извлечь чат...")
         full = await client(functions.channels.GetFullChannelRequest(chat))
         if full and full.chats:
             for chat in full.chats:
                 if chat is not None and chat.megagroup:
-                    logger.info(
-                        f"Исходя из ссылки {link} найден прикрепленный чат {chat.id}."
-                    )
-                    logger.info(f"Чат {chat.id} от канала {link} в работе.")
+                    logger.info(f"Чат {link} в работе.")
                     await parse_chat(client, chat, user_data, link)
 
 
