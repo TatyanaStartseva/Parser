@@ -60,6 +60,10 @@ def get_username(entity):
         return None
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 29dc291b39d73f09c35933e1c7f1519154eb9cbc
 
 def serialize_participant(participant):
     return {
