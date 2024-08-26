@@ -213,9 +213,8 @@ async def parse_chat_by_link(client, link, user_data):
 async def main(api_id, api_hash, session_value):
     user_data = {"chats": {}, "accounts": {}}
     try:
-        # res = requests.get(f"http://{IP}/link")
-        # link = res.json()
-        link = "https://t.me/aisender"
+        res = requests.get(f"http://{IP}/link")
+        link = res.json()
         if link:
             logger.info(f"Ссылка, полученная для парсинга: {link}")
             async with TelegramClient(
