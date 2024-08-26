@@ -60,41 +60,6 @@ def get_username(entity):
         return None
 
 
-async def get_bio(username, path):
-    max_retries = 3
-
-    for _ in range(max_retries):
-        try:
-            async with aiohttp.ClientSession() as session:
-                proxy = "http://kgJ3kE6qMfkqye32Al-dc-ANY:64GfvKmaP3U10Vs@gw.thunderproxy.net:5959"
-                url = f"https://t.me/{username}"
-                async with session.get(url, proxy=proxy, timeout=60) as response:
-                    if response.status == 200:
-                        html_content = await response.text()
-                        match = re.search(
-                            r'<meta property="og:description" content="([^"]*)"',
-                            html_content,
-                        )
-                        if match:
-                            bio = match.group(1)
-
-                            if bio:
-                                real_bio = bio.strip().lower()
-                                if "you can contact" in real_bio:
-                                    path["bio"] = None
-                                else:
-                                    path["bio"] = real_bio
-                                return
-                            else:
-                                path["bio"] = None
-                                return
-                        else:
-                            path["bio"] = None
-                            return
-        except Exception:
-            if _ >= max_retries - 1:
-                path["bio"] = None
-                return
 
 
 def serialize_participant(participant):
@@ -196,13 +161,7 @@ async def parse_chat(client, chat, user_data, link):
                                 "chats": set([chat.id]),
                                 "info": serialize_participant(participant),
                             }
-
-                            asyncio.create_task(
-                                get_bio(
-                                    participant.username,
-                                    user_data["accounts"][participant.id]["info"],
-                                )
-                            )
+                            user_data["accounts"][participant.id]["info"]['bio'] = 'Default-value-for-parser'
                         else:
                             chats = user_data["accounts"][participant.id]["chats"]
                             if chat.id not in chats:
@@ -227,11 +186,7 @@ async def parse_chat(client, chat, user_data, link):
                         "chats": set([chat.id]),
                         "info": serialize_participant(sender),
                     }
-                    asyncio.create_task(
-                        get_bio(
-                            sender.username, user_data["accounts"][sender.id]["info"]
-                        )
-                    )
+                    user_data["accounts"][sender.id]["info"]['bio']= 'Default-value-for-parser'
                 else:
                     if chat.id not in user_data["accounts"][sender.id]["chats"]:
                         user_data["accounts"][sender.id]["chats"].add(chat.id)
