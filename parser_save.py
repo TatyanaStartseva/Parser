@@ -69,7 +69,7 @@ async def insert_or_update_one(pool, table_name, fields, updates):
                     insert_query = f"INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders}) ON CONFLICT DO NOTHING "
                     await conn.execute(insert_query, *values)
                     logger.info(f"Добавлено в БД  {values}")
-                elif table_name != "user_chat":
+                elif table_name == "chats":
                     update_fields = [
                         f"{field} = ${i+1}" for i, field in enumerate(fields[0:])
                     ]
