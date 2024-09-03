@@ -1,4 +1,3 @@
-import aiohttp
 import string
 import random
 import logging
@@ -7,7 +6,6 @@ import json
 import os
 import requests
 import sys
-import re
 
 from aiohttp import web
 from telethon.sessions import StringSession
@@ -58,7 +56,6 @@ def get_username(entity):
         return entity.username
     else:
         return None
-
 
 
 def serialize_participant(participant):
@@ -143,7 +140,9 @@ async def parse_chat(client, chat, user_data, link):
                     logger.info(
                         f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Обработка участника {processed_participants}/{total_participants}"
                     )
-                    if participant is None or  not getattr(participant, "username", None):
+                    if participant is None or not getattr(
+                        participant, "username", None
+                    ):
                         continue
 
                     if (
@@ -156,7 +155,9 @@ async def parse_chat(client, chat, user_data, link):
                                 "chats": set([chat.id]),
                                 "info": serialize_participant(participant),
                             }
-                            user_data["accounts"][participant.id]["info"]['bio'] = 'Default-value-for-parser'
+                            user_data["accounts"][participant.id]["info"][
+                                "bio"
+                            ] = "Default-value-for-parser"
                         else:
                             chats = user_data["accounts"][participant.id]["chats"]
                             if chat.id not in chats:
@@ -169,7 +170,7 @@ async def parse_chat(client, chat, user_data, link):
 
         async for message in client.iter_messages(chat, limit=25000):
             sender = message.sender
-            if sender is None or  not getattr(sender, "username", None):
+            if sender is None or not getattr(sender, "username", None):
                 continue
             if (
                 not isinstance(sender, Channel)
@@ -181,7 +182,9 @@ async def parse_chat(client, chat, user_data, link):
                         "chats": set([chat.id]),
                         "info": serialize_participant(sender),
                     }
-                    user_data["accounts"][sender.id]["info"]['bio']= 'Default-value-for-parser'
+                    user_data["accounts"][sender.id]["info"][
+                        "bio"
+                    ] = "Default-value-for-parser"
                 else:
                     if chat.id not in user_data["accounts"][sender.id]["chats"]:
                         user_data["accounts"][sender.id]["chats"].add(chat.id)
@@ -218,7 +221,11 @@ async def main(api_id, api_hash, session_value):
         if link:
             logger.info(f"Ссылка, полученная для парсинга: {link}")
             async with TelegramClient(
-                StringSession(session_value), api_id, api_hash
+                StringSession(session_value),
+                api_id,
+                api_hash,
+                system_version="4.16.30-vxCUSTOM",
+                device_model="Samsung Galaxy S21 Ultra 5G",
             ) as client:
                 try:
                     await parse_chat_by_link(client, link, user_data)
