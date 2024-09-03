@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 import datetime
 import logging
 from db.db import db
-from motor.motor_asyncio import AsyncIOMotorClient
 
 load_dotenv()
 HOST = os.getenv("HOST")

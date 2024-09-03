@@ -17,7 +17,6 @@ from dotenv import load_dotenv
 from parser_save import background_save
 
 load_dotenv()
-
 IP = os.getenv("IP")
 
 
