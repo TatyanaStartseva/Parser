@@ -1,18 +1,18 @@
 import sys
-import asyncpg
 import asyncio
 import os
-from pymongo import MongoClient
 from dotenv import load_dotenv
 import datetime
 import logging
 from db.db import db
 
 load_dotenv()
+
 HOST = os.getenv("HOST")
 DATABASE = os.getenv("DATABASE")
 USER = os.getenv("USERNAME_DB")
 PASSWORD = os.getenv("PASSWORD_DB")
+
 logging.basicConfig(
     level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s"
 )
@@ -44,7 +44,7 @@ async def insert_many(db, table_name, updates):
             return
         logger.info(f"Инициализирую запрос на вставку в БД {updates}")
         conn = db[f"{table_name}"]
-        conn.insert_many(updates)
+        await conn.insert_many(updates)
     except Exception as e:
         raise e
 
@@ -53,19 +53,24 @@ async def Users(data, pool):
     try:
         updates = []
         updates_links = []
+
         conn = pool["users"]
         conn_links = pool["links"]
+
         all_users = set(
-            conn.distinct(
+            await conn.distinct(
                 "user_id",
                 {"user_id": {"$in": list(data["accounts"].keys())}},
             )
         )
-        cursor = conn_links.find(
+
+        cursor = await conn_links.find(
             {"chat_id": {"$in": list(data["chats"])}},
             {"_id": 0, "user_id": 1, "chat_id": 1},
         )
+
         exists_links = set((doc["user_id"], doc["chat_id"]) for doc in cursor)
+
         for key in data["accounts"]:
             for key_chat in data["accounts"][key]["chats"]:
                 if (key, key_chat) in exists_links:
@@ -75,9 +80,12 @@ async def Users(data, pool):
                     "chat_id": key_chat,
                 }
                 updates_links.append(links_update)
+
             if key in all_users:
                 continue
+
             accounts_info = data["accounts"][key]["info"]
+
             if (
                 accounts_info.get("username") is not None
                 and accounts_info.get("first_name") is not None
@@ -105,6 +113,7 @@ async def Users(data, pool):
                 }
 
                 updates.append(user_update)
+
         await retry(insert_many, pool, "users", updates)
         await retry(insert_many, pool, "links", updates_links)
     except Exception as e:
@@ -117,11 +126,13 @@ async def Chats(data, pool):
         updates = []
         conn = pool["chats"]
         exists_chats = set(
-            conn.distinct("chat_id", {"chat_id": {"$in": list(data["chats"].keys())}})
+            await conn.distinct("chat_id", {"chat_id": {"$in": list(data["chats"].keys())}})
         )
+
         for key in data["chats"]:
             if key in exists_chats:
                 continue
+
             chats_key = data["chats"][key]
             last_online = (
                 datetime.datetime.strptime(
@@ -130,6 +141,7 @@ async def Chats(data, pool):
                 if chats_key.get("last_online") is not None
                 else None
             )
+
             updates.append(
                 {
                     "chat_id": key,
@@ -139,6 +151,7 @@ async def Chats(data, pool):
                     "last_online": last_online,
                 }
             )
+
         await retry(insert_many, pool, "chats", updates)
     except Exception as e:
         logger.error(f"Error: {e}")
