@@ -19,9 +19,12 @@ from parser_save import background_save
 load_dotenv()
 IP = os.getenv("IP")
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
+query_keys_path = os.path.join(base_dir, "query_keys.json")
 
-with open("query_keys.json", "r") as f:
+with open(query_keys_path, "r") as f:
     queryKey = json.load(f) or []
+
 
 logging.basicConfig(
     level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s"
