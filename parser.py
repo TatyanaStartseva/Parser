@@ -253,10 +253,11 @@ async def main(api_id, api_hash, session_value):
         logger.error(f"Произошла глобальная ошибка. {e}")
 
 
-api_id = sys.argv[1]
-api_hash = sys.argv[2]
-session_value = sys.argv[3]
+
 
 if __name__ == "__main__":
+    api_id = sys.argv[1]
+    api_hash = sys.argv[2]
+    session_value = sys.argv[3]
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main(api_id, api_hash, session_value))
